@@ -49,7 +49,9 @@ public class HealthIndicatorRegistryFactory {
 	public HealthIndicatorRegistry createHealthIndicatorRegistry(
 			Map<String, HealthIndicator> healthIndicators) {
 		Assert.notNull(healthIndicators, "HealthIndicators must not be null");
-		return initialize(new DefaultHealthIndicatorRegistry(), healthIndicators);
+		return initialize(
+				new TimingHealthIndicatorRegistry(new DefaultHealthIndicatorRegistry()),
+				healthIndicators);
 	}
 
 	protected <T extends HealthIndicatorRegistry> T initialize(T registry,

@@ -16,8 +16,12 @@
 
 package org.springframework.boot.actuate.health;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+
 import org.assertj.core.api.Assertions;
-import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -29,41 +33,64 @@ public class HealthIndicatorTimerTests {
 
 	@Test
 	public void extendsDetailsWithMeasurementDuration() {
-		Health wrappedHealth = Health.up().withDetail("detail-a", "value-a").build();
-		DelayedHealthIndicator wrappedIndicator = new DelayedHealthIndicator(10,
-				wrappedHealth);
+		Health wrappedHealth = Health.up().withDetail("a", "a value").build();
+		FixedHealthIndicator wrappedIndicator = new FixedHealthIndicator(wrappedHealth);
+		Clock clock = new FakeClock(Instant.now(), Duration.ofMillis(10));
 
-		Health result = new HealthIndicatorTimer(wrappedIndicator).health();
-
-		Assertions.assertThat(result.getDetails())
-				.containsOnlyKeys(HealthIndicatorTimer.DURATION_DETAIL, "detail-a");
+		Health result = new HealthIndicatorTimer(wrappedIndicator, clock).health();
 		Assertions.assertThat(
 				(long) result.getDetails().get(HealthIndicatorTimer.DURATION_DETAIL))
-				.isBetween(10L, 100L);
-
+				.isEqualTo(10L);
+		Assertions.assertThat(result.getDetails())
+				.containsOnlyKeys(HealthIndicatorTimer.DURATION_DETAIL, "a");
 		Assertions.assertThat(result.getStatus()).isEqualTo(Status.UP);
 	}
 
-	static class DelayedHealthIndicator implements HealthIndicator {
-
-		private long delay;
+	static class FixedHealthIndicator implements HealthIndicator {
 
 		private final Health health;
 
-		DelayedHealthIndicator(long delay, Health health) {
-			this.delay = delay;
+		FixedHealthIndicator(Health health) {
 			this.health = health;
 		}
 
 		@Override
 		public Health health() {
-			try {
-				Thread.sleep(this.delay);
-			}
-			catch (InterruptedException ex) {
-				Assert.fail("Thread not expected to be interrupted");
-			}
 			return this.health;
+		}
+
+	}
+
+	/**
+	 * Fake {@link Clock} implementation. Changes time by configured step each time the
+	 * current time is requested.
+	 */
+	static class FakeClock extends Clock {
+
+		private Instant now;
+
+		private Duration step;
+
+		FakeClock(Instant now, Duration step) {
+			this.now = now;
+			this.step = step;
+		}
+
+		@Override
+		public Instant instant() {
+			Instant result = this.now;
+			this.now = this.now.plus(this.step);
+			return result;
+		}
+
+		@Override
+		public ZoneId getZone() {
+			return ZoneId.systemDefault();
+		}
+
+		@Override
+		public Clock withZone(ZoneId zone) {
+			return this;
 		}
 
 	}

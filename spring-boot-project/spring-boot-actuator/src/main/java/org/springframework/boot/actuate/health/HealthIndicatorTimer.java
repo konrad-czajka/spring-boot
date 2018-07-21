@@ -16,6 +16,8 @@
 
 package org.springframework.boot.actuate.health;
 
+import java.time.Clock;
+
 /**
  * {@link HealthIndicator} decorator used to gather health measurement time. The result is
  * stored as a one of {@link Health}'s details.
@@ -31,15 +33,22 @@ public class HealthIndicatorTimer implements HealthIndicator {
 
 	private final HealthIndicator delegate;
 
+	private final Clock clock;
+
 	public HealthIndicatorTimer(HealthIndicator delegate) {
+		this(delegate, Clock.systemUTC());
+	}
+
+	public HealthIndicatorTimer(HealthIndicator delegate, Clock clock) {
 		this.delegate = delegate;
+		this.clock = clock;
 	}
 
 	@Override
 	public Health health() {
-		long start = System.currentTimeMillis();
+		long start = this.clock.millis();
 		Health delegateHealth = this.delegate.health();
-		long end = System.currentTimeMillis();
+		long end = this.clock.millis();
 
 		Health.Builder result = Health.status(delegateHealth.getStatus());
 		delegateHealth.getDetails().forEach(result::withDetail);
